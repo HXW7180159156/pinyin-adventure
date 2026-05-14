@@ -2,7 +2,7 @@
 
 > 专为4-7岁儿童设计的汉语拼音学习应用，游戏化学习，轻松掌握拼音！
 
-[🌐 在线体验](http://localhost:5173/) | [📖 发布指南](./docs/publish-guide.md)
+[🌐 在线体验](https://hxw7180159156.github.io/pinyin-adventure/) | [📖 发布指南](./docs/publish-guide.md)
 
 ## ✨ 功能特点
 
