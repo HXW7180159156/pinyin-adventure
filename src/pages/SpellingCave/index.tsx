@@ -7,20 +7,12 @@ import { speakChinese } from '../../utils/speech'
 
 // ==================== 类型定义 ====================
 type GameStage = 'menu' | 'two-syllable' | 'three-syllable' | 'drag-game' | 'evaluation'
-type Difficulty = 'easy' | 'medium' | 'hard'
 
 interface SpellingProgress {
   twoSyllable: { completed: number; total: number; bestScore: number }
   threeSyllable: { completed: number; total: number; bestScore: number }
   dragGame: { completed: number; total: number; bestScore: number }
   evaluation: { score: number; lastTest: string }
-}
-
-interface DragItem {
-  id: string
-  type: 'initial' | 'final' | 'medial'
-  symbol: string
-  color: string
 }
 
 interface DropZone {
@@ -787,7 +779,6 @@ const SpellingEvaluation = ({
   const [score, setScore] = useState(0)
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
   const [showResult, setShowResult] = useState(false)
-  const [isRecording, setIsRecording] = useState(false)
   const [testComplete, setTestComplete] = useState(false)
 
   const questions = [

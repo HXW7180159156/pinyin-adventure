@@ -5,8 +5,19 @@ interface SpeakOptions {
   onError?: () => void
 }
 
+let speechEnabled = true
+
+export const setSpeechEnabled = (enabled: boolean) => {
+  speechEnabled = enabled
+  if (!enabled && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    window.speechSynthesis.cancel()
+  }
+}
+
 export const speakChinese = (text: string, options: SpeakOptions = {}): boolean => {
   if (
+    !speechEnabled
+    ||
     typeof window === 'undefined'
     || !('speechSynthesis' in window)
     || !('SpeechSynthesisUtterance' in window)
