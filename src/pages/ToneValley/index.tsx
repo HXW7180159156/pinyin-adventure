@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { tones } from '../../data/phonemes'
 import { useGame } from '../../context/GameContext'
+import { isToneSpellAnswer, shuffle } from '../../utils/gameLogic'
+import { loadStoredValue, saveStoredValue } from '../../utils/storage'
+import { speakChinese } from '../../utils/speech'
 
 // ==================== 类型定义 ====================
 
@@ -34,11 +37,10 @@ const TONE_DESCRIPTIONS = ['高平调', '升调', '降升调', '降调']
 // ==================== 辅助函数 ====================
 
 const playTone = (toneIndex: number) => {
-  const utterance = new SpeechSynthesisUtterance(`${TONE_NAMES[toneIndex]}，${TONE_DESCRIPTIONS[toneIndex]}`)
-  utterance.lang = 'zh-CN'
-  utterance.rate = 0.8
-  utterance.pitch = 1 + toneIndex * 0.1
-  speechSynthesis.speak(utterance)
+  if (!TONE_NAMES[toneIndex] || !TONE_DESCRIPTIONS[toneIndex]) return
+  speakChinese(`${TONE_NAMES[toneIndex]}，${TONE_DESCRIPTIONS[toneIndex]}`, {
+    pitch: 1 + toneIndex * 0.1,
+  })
 }
 
 const generateCards = (): ToneCard[] => {
@@ -52,7 +54,7 @@ const generateCards = (): ToneCard[] => {
   }
   
   // Shuffle
-  return cards.sort(() => Math.random() - 0.5)
+  return shuffle(cards)
 }
 
 // ==================== 游戏模式组件 ====================
@@ -988,8 +990,7 @@ const ToneChallengeGame = ({ onComplete, onScoreUpdate }: { onComplete: (stats: 
     let correct = false
     
     if (currentQ.type === 'spell') {
-      correct = answer === tones[currentQ.tone].symbol.toLowerCase().replace(/[^a-z]/g, '') + 
-                (currentQ.tone === 0 ? 'a' : currentQ.tone === 1 ? 'a' : currentQ.tone === 2 ? 'a' : 'a')
+      correct = isToneSpellAnswer(answer, currentQ.options, currentQ.tone)
     } else {
       correct = answer === currentQ.tone
     }
@@ -1312,7 +1313,7 @@ const ToneChallengeGame = ({ onComplete, onScoreUpdate }: { onComplete: (stats: 
 export default function ToneValley({ onBack }: { onBack: () => void }) {
   const [currentMode, setCurrentMode] = useState<GameMode>('menu')
   const [currentScore, setCurrentScore] = useState(0)
-  const { state, completeLevel, addStars } = useGame()
+  const { state, completeLevel } = useGame()
 
   const handleScoreUpdate = (score: number) => {
     setCurrentScore(score)
@@ -1320,8 +1321,11 @@ export default function ToneValley({ onBack }: { onBack: () => void }) {
 
   const handleGameComplete = (mode: string, stats: GameStats) => {
     // 保存游戏进度到 localStorage
-    const savedProgress = localStorage.getItem('tone-valley-progress')
-    const progress = savedProgress ? JSON.parse(savedProgress) : {}
+    const progress = loadStoredValue<Record<string, {
+      bestScore: number
+      stars: number
+      lastPlayed: string
+    }>>('tone-valley-progress', {})
     
     progress[mode] = {
       bestScore: Math.max(progress[mode]?.bestScore || 0, stats.score),
@@ -1329,12 +1333,10 @@ export default function ToneValley({ onBack }: { onBack: () => void }) {
       lastPlayed: new Date().toISOString()
     }
     
-    localStorage.setItem('tone-valley-progress', JSON.stringify(progress))
+    saveStoredValue('tone-valley-progress', progress)
     
     // 更新全局游戏状态
     if (stats.stars > 0) {
-      addStars(stats.stars)
-      
       // 完成对应关卡
       const levelMap: Record<string, string> = {
         'train': 'tone-train',

@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { singleFinals } from '../../data/phonemes'
 import type { Phoneme } from '../../types'
+import { useGame } from '../../context/GameContext'
+import { usePersistentState } from '../../hooks/usePersistentState'
+import { starsForScore } from '../../utils/gameLogic'
+import { speakChinese } from '../../utils/speech'
 
 // ==================== 类型定义 ====================
 type LearningStage = 'intro' | 'learn' | 'practice' | 'test' | 'aquarium' | 'spelling'
-type WritingStep = 'stroke1' | 'stroke2' | 'complete'
 
 interface FinalProgress {
   id: string
@@ -14,11 +16,6 @@ interface FinalProgress {
   practiceCount: number
   testScore: number
   writingCompleted: boolean
-}
-
-interface AquariumState {
-  fish: { id: string; finalId: string; x: number; y: number; speed: number; size: number }[]
-  decorations: { id: string; type: string; x: number; y: number }[]
 }
 
 // ==================== 单韵母完整数据 ====================
@@ -437,9 +434,7 @@ const Aquarium = ({
                 }}
                 whileHover={{ scale: 1.2 }}
                 onClick={() => {
-                  const utterance = new SpeechSynthesisUtterance(finalData.pronunciation)
-                  utterance.lang = 'zh-CN'
-                  speechSynthesis.speak(utterance)
+                  speakChinese(finalData.pronunciation)
                 }}
               >
                 <div
@@ -525,9 +520,7 @@ const SpellingPractice = ({
     if (isValid) {
       setScore(prev => prev + 10 + combo * 2)
       setCombo(prev => prev + 1)
-      const utterance = new SpeechSynthesisUtterance(initial + currentFinal.pronunciation)
-      utterance.lang = 'zh-CN'
-      speechSynthesis.speak(utterance)
+      speakChinese(initial + currentFinal.pronunciation)
     } else {
       setCombo(0)
     }
@@ -798,38 +791,25 @@ const FinalTest = ({
 export default function FinalIsland({ onBack }: { onBack: () => void }) {
   const [stage, setStage] = useState<LearningStage>('intro')
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [progress, setProgress] = useState<Record<string, FinalProgress>>({})
+  const [progress, setProgress] = usePersistentState<Record<string, FinalProgress>>(
+    'final-island-progress',
+    {},
+  )
   const [showAquarium, setShowAquarium] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
+  const { completeLevel } = useGame()
 
   const currentFinal = FINALS_DATA[currentIndex]
 
-  // 从 localStorage 加载进度
-  useEffect(() => {
-    const saved = localStorage.getItem('final-island-progress')
-    if (saved) {
-      try {
-        setProgress(JSON.parse(saved))
-      } catch (e) {
-        console.error('Failed to load progress:', e)
-      }
-    }
-  }, [])
-
-  // 保存进度
-  useEffect(() => {
-    localStorage.setItem('final-island-progress', JSON.stringify(progress))
-  }, [progress])
-
   const speak = useCallback((text: string) => {
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = 'zh-CN'
-    utterance.rate = 0.8
-    speechSynthesis.speak(utterance)
+    speakChinese(text)
   }, [])
 
   const handleCollect = () => {
+    if (!progress[currentFinal.id]?.collected) {
+      completeLevel(`final-island-${currentFinal.id}`, 'final-island', 1)
+    }
     setProgress(prev => ({
       ...prev,
       [currentFinal.id]: {
@@ -844,6 +824,11 @@ export default function FinalIsland({ onBack }: { onBack: () => void }) {
   }
 
   const handleTestComplete = (score: number) => {
+    completeLevel(
+      `final-island-${currentFinal.id}`,
+      'final-island',
+      starsForScore(score),
+    )
     setProgress(prev => ({
       ...prev,
       [currentFinal.id]: {

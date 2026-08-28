@@ -1,4 +1,4 @@
-import type { Phoneme, Chapter, Achievement, DailyTask } from '../types';
+import type { Phoneme, Chapter, Achievement, DailyTask, Level } from '../types';
 
 // 声调数据
 export const tones: Phoneme[] = [
@@ -128,6 +128,21 @@ export const initials: Phoneme[] = [
   { id: 't', symbol: 't', category: 'initial', pronunciation: '特', mouthShape: '舌尖抵上牙龈，送气', examples: ['他(tā)', '天(tiān)', '听(tīng)'], difficulty: 1, color: '#AA96DA', icon: '👅' },
   { id: 'n', symbol: 'n', category: 'initial', pronunciation: '讷', mouthShape: '舌尖抵上牙龈，鼻音', examples: ['你(nǐ)', '年(nián)', '牛(niú)'], difficulty: 1, color: '#FCBAD3', icon: '👅' },
   { id: 'l', symbol: 'l', category: 'initial', pronunciation: '勒', mouthShape: '舌尖抵上牙龈，边音', examples: ['了(le)', '来(lái)', '老(lǎo)'], difficulty: 1, color: '#FFFFD2', icon: '👅' },
+  { id: 'g', symbol: 'g', category: 'initial', pronunciation: '哥', mouthShape: '舌根抵住软腭，突然放开', examples: ['哥(gē)', '狗(gǒu)', '瓜(guā)'], difficulty: 2, color: '#98D8C8', icon: '👅' },
+  { id: 'k', symbol: 'k', category: 'initial', pronunciation: '科', mouthShape: '舌根抵住软腭，用力送气', examples: ['科(kē)', '口(kǒu)', '哭(kū)'], difficulty: 2, color: '#F7DC6F', icon: '👅' },
+  { id: 'h', symbol: 'h', category: 'initial', pronunciation: '喝', mouthShape: '舌根接近软腭，气流摩擦', examples: ['喝(hē)', '花(huā)', '河(hé)'], difficulty: 2, color: '#BB8FCE', icon: '👅' },
+  { id: 'j', symbol: 'j', category: 'initial', pronunciation: '鸡', mouthShape: '舌面前部抵住硬腭前部', examples: ['鸡(jī)', '家(jiā)', '九(jiǔ)'], difficulty: 2, color: '#85C1E2', icon: '👅' },
+  { id: 'q', symbol: 'q', category: 'initial', pronunciation: '七', mouthShape: '舌面前部抵住硬腭前部，送气', examples: ['七(qī)', '桥(qiáo)', '去(qù)'], difficulty: 2, color: '#F8B739', icon: '👅' },
+  { id: 'x', symbol: 'x', category: 'initial', pronunciation: '西', mouthShape: '舌面前部接近硬腭前部', examples: ['西(xī)', '小(xiǎo)', '雪(xuě)'], difficulty: 2, color: '#52B788', icon: '👅' },
+  { id: 'zh', symbol: 'zh', category: 'initial', pronunciation: '知', mouthShape: '舌尖翘起抵住硬腭前部', examples: ['知(zhī)', '中(zhōng)', '猪(zhū)'], difficulty: 3, color: '#E17055', icon: '👅' },
+  { id: 'ch', symbol: 'ch', category: 'initial', pronunciation: '吃', mouthShape: '舌尖翘起抵住硬腭前部，送气', examples: ['吃(chī)', '车(chē)', '船(chuán)'], difficulty: 3, color: '#6C5CE7', icon: '👅' },
+  { id: 'sh', symbol: 'sh', category: 'initial', pronunciation: '诗', mouthShape: '舌尖翘起接近硬腭前部', examples: ['诗(shī)', '书(shū)', '山(shān)'], difficulty: 3, color: '#A29BFE', icon: '👅' },
+  { id: 'r', symbol: 'r', category: 'initial', pronunciation: '日', mouthShape: '舌尖翘起，声带振动', examples: ['日(rì)', '人(rén)', '热(rè)'], difficulty: 3, color: '#FD79A8', icon: '👅' },
+  { id: 'z', symbol: 'z', category: 'initial', pronunciation: '资', mouthShape: '舌尖抵住上齿背', examples: ['字(zì)', '走(zǒu)', '早(zǎo)'], difficulty: 3, color: '#FDCB6E', icon: '👅' },
+  { id: 'c', symbol: 'c', category: 'initial', pronunciation: '刺', mouthShape: '舌尖抵住上齿背，送气', examples: ['词(cí)', '草(cǎo)', '粗(cū)'], difficulty: 3, color: '#6C5CE7', icon: '👅' },
+  { id: 's', symbol: 's', category: 'initial', pronunciation: '丝', mouthShape: '舌尖接近上齿背', examples: ['丝(sī)', '三(sān)', '送(sòng)'], difficulty: 3, color: '#00B894', icon: '👅' },
+  { id: 'y', symbol: 'y', category: 'initial', pronunciation: '衣', mouthShape: '舌面前部抬高', examples: ['一(yī)', '牙(yá)', '月(yuè)'], difficulty: 2, color: '#E84393', icon: '👅' },
+  { id: 'w', symbol: 'w', category: 'initial', pronunciation: '乌', mouthShape: '双唇收圆', examples: ['五(wǔ)', '我(wǒ)', '娃(wá)'], difficulty: 2, color: '#0984E3', icon: '👅' },
 ];
 
 // 复韵母数据
@@ -141,6 +156,18 @@ export const compoundFinals: Phoneme[] = [
   { id: 'ie', symbol: 'ie', category: 'compound', pronunciation: '椰', mouthShape: 'i滑动到e，发音连贯', examples: ['写(xiě)', '别(bié)', '家(jiā)'], difficulty: 2, color: '#FCBAD3', icon: '🌊' },
   { id: 'üe', symbol: 'üe', category: 'compound', pronunciation: '月', mouthShape: 'ü滑动到e，发音连贯', examples: ['月(yuè)', '学(xué)', '雪(xuě)'], difficulty: 3, color: '#A8E6CF', icon: '🌊' },
   { id: 'er', symbol: 'er', category: 'compound', pronunciation: '耳', mouthShape: '舌头卷起，发"er"音', examples: ['二(èr)', '耳(ěr)', '儿(ér)'], difficulty: 2, color: '#FFD3B6', icon: '🌊' },
+];
+
+export const nasalFinals: Phoneme[] = [
+  { id: 'an', symbol: 'an', category: 'final', pronunciation: '安', mouthShape: '先发a，再用舌尖抵住上牙龈收音', examples: ['安(ān)', '蓝(lán)', '看(kàn)'], difficulty: 2, color: '#95E1D3', icon: '👃' },
+  { id: 'en', symbol: 'en', category: 'final', pronunciation: '恩', mouthShape: '先发e，再用舌尖抵住上牙龈收音', examples: ['恩(ēn)', '门(mén)', '本(běn)'], difficulty: 2, color: '#F38181', icon: '👃' },
+  { id: 'in', symbol: 'in', category: 'final', pronunciation: '音', mouthShape: '先发i，再用舌尖抵住上牙龈收音', examples: ['音(yīn)', '林(lín)', '近(jìn)'], difficulty: 2, color: '#AA96DA', icon: '👃' },
+  { id: 'un', symbol: 'un', category: 'final', pronunciation: '温', mouthShape: '从u滑向en，舌尖抵住上牙龈', examples: ['温(wēn)', '春(chūn)', '轮(lún)'], difficulty: 2, color: '#FF6B6B', icon: '👃' },
+  { id: 'ün', symbol: 'ün', category: 'final', pronunciation: '晕', mouthShape: '从ü滑向n，舌尖抵住上牙龈', examples: ['云(yún)', '军(jūn)', '群(qún)'], difficulty: 3, color: '#4ECDC4', icon: '👃' },
+  { id: 'ang', symbol: 'ang', category: 'final', pronunciation: '昂', mouthShape: '先发a，再抬高舌根用鼻音收尾', examples: ['昂(áng)', '房(fáng)', '上(shàng)'], difficulty: 3, color: '#FFE66D', icon: '👃' },
+  { id: 'eng', symbol: 'eng', category: 'final', pronunciation: '鞥', mouthShape: '先发e，再抬高舌根用鼻音收尾', examples: ['风(fēng)', '冷(lěng)', '正(zhèng)'], difficulty: 3, color: '#95E1D3', icon: '👃' },
+  { id: 'ing', symbol: 'ing', category: 'final', pronunciation: '英', mouthShape: '先发i，再抬高舌根用鼻音收尾', examples: ['英(yīng)', '听(tīng)', '星(xīng)'], difficulty: 3, color: '#F38181', icon: '👃' },
+  { id: 'ong', symbol: 'ong', category: 'final', pronunciation: '嗡', mouthShape: '双唇收圆，抬高舌根用鼻音收尾', examples: ['东(dōng)', '红(hóng)', '送(sòng)'], difficulty: 3, color: '#AA96DA', icon: '👃' },
 ];
 
 // 整体认读音节数据
@@ -162,6 +189,23 @@ export const wholeReadings: Phoneme[] = [
   { id: 'yun', symbol: 'yun', category: 'whole', pronunciation: '云', mouthShape: 'ü滑动到n，连贯发音', examples: ['云(yún)', '运(yùn)', '军(jūn)'], difficulty: 3, color: '#A8E6CF', icon: '📖' },
   { id: 'ying', symbol: 'ying', category: 'whole', pronunciation: '英', mouthShape: 'i滑动到ng，连贯发音', examples: ['英(yīng)', '应(yīng)', '影(yǐng)'], difficulty: 3, color: '#FFD3B6', icon: '📖' },
 ];
+
+const createLearningLevels = (
+  chapterId: string,
+  ids: readonly string[],
+  type: Level['type'] = 'learn',
+): Level[] => ids.map((id) => ({
+  id: `${chapterId}-${id}`,
+  chapterId,
+  name: `${id} 学习`,
+  type,
+  description: `学习并掌握 ${id}`,
+  phonemes: [id],
+  starsRequired: 0,
+  completed: false,
+  starsEarned: 0,
+  bestScore: 0,
+}))
 
 // 章节配置
 export const chapters: Chapter[] = [
@@ -286,6 +330,20 @@ export const chapters: Chapter[] = [
     ],
   },
   {
+    id: 'compound-finals',
+    name: '复韵母礁',
+    description: '学习九个复韵母，发音更丰富',
+    icon: '🐚',
+    color: 'from-cyan-400 to-teal-400',
+    unlocked: false,
+    completed: false,
+    progress: 0,
+    levels: createLearningLevels(
+      'compound-finals',
+      compoundFinals.map((phoneme) => phoneme.id),
+    ),
+  },
+  {
     id: 'initial-peak',
     name: '声母峰',
     description: '挑战23个声母，成为拼音高手',
@@ -294,7 +352,24 @@ export const chapters: Chapter[] = [
     unlocked: false,
     completed: false,
     progress: 0,
-    levels: [],
+    levels: createLearningLevels(
+      'initial-peak',
+      initials.map((phoneme) => phoneme.id),
+    ),
+  },
+  {
+    id: 'whole-reading',
+    name: '整体认读',
+    description: '学习16个整体认读音节',
+    icon: '📚',
+    color: 'from-lime-400 to-green-400',
+    unlocked: false,
+    completed: false,
+    progress: 0,
+    levels: createLearningLevels(
+      'whole-reading',
+      wholeReadings.map((phoneme) => phoneme.id),
+    ),
   },
   {
     id: 'spelling-cave',
@@ -305,7 +380,11 @@ export const chapters: Chapter[] = [
     unlocked: false,
     completed: false,
     progress: 0,
-    levels: [],
+    levels: createLearningLevels(
+      'spelling-cave',
+      ['two-syllable', 'three-syllable', 'drag-game', 'evaluation'],
+      'practice',
+    ),
   },
 ];
 
@@ -383,7 +462,14 @@ export const dailyTasks: DailyTask[] = [
 
 // 获取所有拼音
 export const getAllPhonemes = (): Phoneme[] => {
-  return [...tones, ...singleFinals, ...initials];
+  return [
+    ...tones,
+    ...singleFinals,
+    ...compoundFinals,
+    ...nasalFinals,
+    ...initials,
+    ...wholeReadings,
+  ];
 };
 
 // 根据ID获取拼音

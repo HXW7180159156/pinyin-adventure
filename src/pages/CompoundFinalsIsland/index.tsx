@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { compoundFinals } from '../../data/phonemes'
 import type { Phoneme } from '../../types'
+import { useGame } from '../../context/GameContext'
+import { usePersistentState } from '../../hooks/usePersistentState'
+import { starsForScore } from '../../utils/gameLogic'
+import { speakChinese } from '../../utils/speech'
 
 // ==================== 类型定义 ====================
 type LearningStage = 'intro' | 'learn' | 'practice' | 'test' | 'aquarium'
@@ -228,15 +231,32 @@ const RecordingPractice = ({
   onComplete: () => void
 }) => {
   const [isRecording, setIsRecording] = useState(false)
-  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [recordingError, setRecordingError] = useState('')
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const playbackUrlRef = useRef<string | null>(null)
   const chunksRef = useRef<Blob[]>([])
 
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop()
+    streamRef.current?.getTracks().forEach((track) => track.stop())
+    if (playbackUrlRef.current) URL.revokeObjectURL(playbackUrlRef.current)
+  }, [])
+
   const startRecording = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      setRecordingError('当前设备不支持录音，请使用发音播放功能继续学习。')
+      return
+    }
+
     try {
+      setRecordingError('')
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
       const mediaRecorder = new MediaRecorder(stream)
       mediaRecorderRef.current = mediaRecorder
       chunksRef.current = []
@@ -249,23 +269,28 @@ const RecordingPractice = ({
 
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
-        setRecordedBlob(blob)
+        if (playbackUrlRef.current) URL.revokeObjectURL(playbackUrlRef.current)
         const url = URL.createObjectURL(blob)
+        playbackUrlRef.current = url
         setPlaybackUrl(url)
         stream.getTracks().forEach(track => track.stop())
+        streamRef.current = null
       }
 
       mediaRecorder.start()
       setIsRecording(true)
 
       // 3秒后自动停止
-      setTimeout(() => {
+      timerRef.current = setTimeout(() => {
         if (mediaRecorderRef.current?.state === 'recording') {
           stopRecording()
         }
       }, 3000)
     } catch (err) {
       console.error('录音失败:', err)
+      streamRef.current?.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+      setRecordingError('无法使用麦克风。请允许录音权限，或返回继续其他练习。')
     }
   }
 
@@ -274,14 +299,13 @@ const RecordingPractice = ({
       mediaRecorderRef.current.stop()
       setIsRecording(false)
     }
+    if (timerRef.current) clearTimeout(timerRef.current)
   }
 
   const speakWord = (example: string) => {
     const match = example.match(/([\u4e00-\u9fa5]+)/)?.[0]
     if (match) {
-      const utterance = new SpeechSynthesisUtterance(match)
-      utterance.lang = 'zh-CN'
-      speechSynthesis.speak(utterance)
+      speakChinese(match)
     }
   }
 
@@ -339,6 +363,14 @@ const RecordingPractice = ({
         <p className="text-gray-500">
           {isRecording ? '录音中... (3秒后自动停止)' : '点击开始录音'}
         </p>
+        <p className="max-w-sm text-center text-xs text-gray-500">
+          录音仅在当前设备中用于回放，不会上传；开始时系统会请求麦克风权限。
+        </p>
+        {recordingError && (
+          <p role="alert" className="max-w-sm text-center text-sm text-red-600">
+            {recordingError}
+          </p>
+        )}
 
         {/* 回放 */}
         {playbackUrl && (
@@ -515,9 +547,7 @@ const Aquarium = ({
                 }}
                 whileHover={{ scale: 1.3 }}
                 onClick={() => {
-                  const utterance = new SpeechSynthesisUtterance(finalData.pronunciation)
-                  utterance.lang = 'zh-CN'
-                  speechSynthesis.speak(utterance)
+                  speakChinese(finalData.pronunciation)
                 }}
               >
                 <div
@@ -732,38 +762,25 @@ const CompoundTest = ({
 export default function CompoundFinalsIsland({ onBack }: { onBack: () => void }) {
   const [stage, setStage] = useState<LearningStage>('intro')
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [progress, setProgress] = useState<Record<string, CompoundProgress>>({})
+  const [progress, setProgress] = usePersistentState<Record<string, CompoundProgress>>(
+    'compound-finals-progress',
+    {},
+  )
   const [showAquarium, setShowAquarium] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
+  const { completeLevel } = useGame()
 
   const currentFinal = COMPOUND_DATA[currentIndex]
 
-  // 从 localStorage 加载进度
-  useEffect(() => {
-    const saved = localStorage.getItem('compound-finals-progress')
-    if (saved) {
-      try {
-        setProgress(JSON.parse(saved))
-      } catch (e) {
-        console.error('Failed to load progress:', e)
-      }
-    }
-  }, [])
-
-  // 保存进度
-  useEffect(() => {
-    localStorage.setItem('compound-finals-progress', JSON.stringify(progress))
-  }, [progress])
-
   const speak = useCallback((text: string) => {
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = 'zh-CN'
-    utterance.rate = 0.8
-    speechSynthesis.speak(utterance)
+    speakChinese(text)
   }, [])
 
   const handleCollect = () => {
+    if (!progress[currentFinal.id]?.collected) {
+      completeLevel(`compound-finals-${currentFinal.id}`, 'compound-finals', 1)
+    }
     setProgress(prev => ({
       ...prev,
       [currentFinal.id]: {
@@ -778,6 +795,11 @@ export default function CompoundFinalsIsland({ onBack }: { onBack: () => void })
   }
 
   const handleTestComplete = (score: number) => {
+    completeLevel(
+      `compound-finals-${currentFinal.id}`,
+      'compound-finals',
+      starsForScore(score),
+    )
     setProgress(prev => ({
       ...prev,
       [currentFinal.id]: {

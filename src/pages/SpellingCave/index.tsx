@@ -1,5 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { motion, AnimatePresence, useDragControls } from 'framer-motion'
+import { useMemo, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useGame } from '../../context/GameContext'
+import { usePersistentState } from '../../hooks/usePersistentState'
+import { shuffle, starsForScore } from '../../utils/gameLogic'
+import { speakChinese } from '../../utils/speech'
 
 // ==================== 类型定义 ====================
 type GameStage = 'menu' | 'two-syllable' | 'three-syllable' | 'drag-game' | 'evaluation'
@@ -146,7 +150,7 @@ const TwoSyllablePractice = ({
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
   const [showResult, setShowResult] = useState(false)
   const [combo, setCombo] = useState(0)
-  const [questions] = useState(() => [...TWO_SYLLABLE_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 10))
+  const [questions] = useState(() => shuffle(TWO_SYLLABLE_QUESTIONS).slice(0, 10))
 
   const currentQ = questions[currentIndex]
 
@@ -175,23 +179,18 @@ const TwoSyllablePractice = ({
   }
 
   const speak = (text: string) => {
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = 'zh-CN'
-    speechSynthesis.speak(utterance)
+    speakChinese(text)
   }
 
-  // 生成选项
-  const generateOptions = () => {
+  const options = useMemo(() => {
     const correct = currentQ.answer
-    const wrongOptions = TWO_SYLLABLE_QUESTIONS
-      .filter(q => q.answer !== correct)
-      .sort(() => Math.random() - 0.5)
+    const wrongOptions = shuffle(
+      TWO_SYLLABLE_QUESTIONS.filter(q => q.answer !== correct),
+    )
       .slice(0, 3)
       .map(q => q.answer)
-    return [correct, ...wrongOptions].sort(() => Math.random() - 0.5)
-  }
-
-  const options = generateOptions()
+    return shuffle([correct, ...wrongOptions])
+  }, [currentQ])
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -341,7 +340,7 @@ const ThreeSyllablePractice = ({
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
   const [showResult, setShowResult] = useState(false)
   const [combo, setCombo] = useState(0)
-  const [questions] = useState(() => [...THREE_SYLLABLE_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 10))
+  const [questions] = useState(() => shuffle(THREE_SYLLABLE_QUESTIONS).slice(0, 10))
 
   const currentQ = questions[currentIndex]
 
@@ -370,23 +369,18 @@ const ThreeSyllablePractice = ({
   }
 
   const speak = (text: string) => {
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = 'zh-CN'
-    speechSynthesis.speak(utterance)
+    speakChinese(text)
   }
 
-  // 生成选项
-  const generateOptions = () => {
+  const options = useMemo(() => {
     const correct = currentQ.answer
-    const wrongOptions = THREE_SYLLABLE_QUESTIONS
-      .filter(q => q.answer !== correct)
-      .sort(() => Math.random() - 0.5)
+    const wrongOptions = shuffle(
+      THREE_SYLLABLE_QUESTIONS.filter(q => q.answer !== correct),
+    )
       .slice(0, 3)
       .map(q => q.answer)
-    return [correct, ...wrongOptions].sort(() => Math.random() - 0.5)
-  }
-
-  const options = generateOptions()
+    return shuffle([correct, ...wrongOptions])
+  }, [currentQ])
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -548,6 +542,7 @@ const DragSpellingGame = ({
   const [draggedItems, setDraggedItems] = useState<Record<string, string>>({})
   const [showResult, setShowResult] = useState(false)
   const [isCorrect, setIsCorrect] = useState(false)
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null)
 
   const levels = [
     { target: 'ba', parts: ['b', 'a'], word: '爸' },
@@ -562,6 +557,11 @@ const DragSpellingGame = ({
 
   const handleDrop = (slotId: string, itemSymbol: string) => {
     setDraggedItems(prev => ({ ...prev, [slotId]: itemSymbol }))
+    setSelectedSymbol(null)
+  }
+
+  const handleSlotClick = (slotId: string) => {
+    if (selectedSymbol) handleDrop(slotId, selectedSymbol)
   }
 
   const checkAnswer = () => {
@@ -587,19 +587,17 @@ const DragSpellingGame = ({
   }
 
   const speak = (text: string) => {
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = 'zh-CN'
-    speechSynthesis.speak(utterance)
+    speakChinese(text)
   }
 
   // 生成可拖拽的选项
   const generateDraggables = () => {
     const needed = currentLevelData.parts
     const extras = ['c', 'd', 'f', 'e', 'i', 'o'].filter(x => !needed.includes(x)).slice(0, 4)
-    return [...needed, ...extras].sort(() => Math.random() - 0.5)
+    return shuffle([...needed, ...extras])
   }
 
-  const draggables = generateDraggables()
+  const draggables = useMemo(generateDraggables, [currentLevel])
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -639,25 +637,27 @@ const DragSpellingGame = ({
 
         {/* 放置区域 */}
         <div className="flex justify-center gap-4 mb-8">
-          {currentLevelData.parts.map((part, index) => (
+          {currentLevelData.parts.map((_, index) => (
             <DropZone
               key={`slot-${index}`}
               id={`slot-${index}`}
-              expected={part}
               current={draggedItems[`slot-${index}`]}
               onDrop={handleDrop}
+              onClick={handleSlotClick}
             />
           ))}
         </div>
 
         {/* 可拖拽选项 */}
         <div className="flex flex-wrap justify-center gap-3 mb-8">
-          {draggables.map((symbol, index) => (
+          {draggables.map((symbol) => (
             <DraggableItem
-              key={index}
+              key={symbol}
               symbol={symbol}
               color={INITIALS.find(i => i.symbol === symbol)?.color || FINALS.find(f => f.symbol === symbol)?.color || '#999'}
               isUsed={Object.values(draggedItems).includes(symbol)}
+              isSelected={selectedSymbol === symbol}
+              onSelect={() => setSelectedSymbol(symbol)}
             />
           ))}
         </div>
@@ -701,38 +701,60 @@ const DragSpellingGame = ({
 }
 
 // ==================== 可拖拽组件 ====================
-const DraggableItem = ({ symbol, color, isUsed }: { symbol: string; color: string; isUsed: boolean }) => {
+const DraggableItem = ({
+  symbol,
+  color,
+  isUsed,
+  isSelected,
+  onSelect,
+}: {
+  symbol: string
+  color: string
+  isUsed: boolean
+  isSelected: boolean
+  onSelect: () => void
+}) => {
   return (
-    <motion.div
-      drag={!isUsed}
-      dragSnapToOrigin
-      whileDrag={{ scale: 1.2, zIndex: 100 }}
-      className={`w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-bold text-white cursor-grab active:cursor-grabbing transition-opacity ${
+    <button
+      type="button"
+      draggable={!isUsed}
+      disabled={isUsed}
+      aria-pressed={isSelected}
+      aria-label={`选择拼音 ${symbol}`}
+      onClick={onSelect}
+      onDragStart={(event) => {
+        event.dataTransfer.setData('text/plain', symbol)
+        event.dataTransfer.effectAllowed = 'move'
+      }}
+      className={`w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-bold text-white cursor-grab active:cursor-grabbing transition-all ${
         isUsed ? 'opacity-30 cursor-not-allowed' : ''
-      }`}
+      } ${isSelected ? 'ring-4 ring-offset-2 ring-purple-500' : ''}`}
       style={{ backgroundColor: color }}
     >
       {symbol}
-    </motion.div>
+    </button>
   )
 }
 
 // ==================== 放置区域组件 ====================
 const DropZone = ({ 
   id, 
-  expected, 
   current, 
-  onDrop 
+  onDrop,
+  onClick,
 }: { 
   id: string
-  expected: string
   current: string | undefined
-  onDrop: (slotId: string, item: string) => void 
+  onDrop: (slotId: string, item: string) => void
+  onClick: (slotId: string) => void
 }) => {
   const [isOver, setIsOver] = useState(false)
 
   return (
-    <motion.div
+    <button
+      type="button"
+      onClick={() => onClick(id)}
+      aria-label={`${id}，${current ? `当前为 ${current}` : '请选择一个拼音后点击这里'}`}
       className={`w-20 h-24 rounded-2xl border-4 border-dashed flex items-center justify-center text-3xl font-bold transition-all ${
         isOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50'
       } ${current ? 'border-solid' : ''}`}
@@ -747,18 +769,19 @@ const DropZone = ({
         const item = e.dataTransfer.getData('text/plain')
         if (item) onDrop(id, item)
       }}
-      animate={current ? { scale: [1, 1.1, 1] } : {}}
     >
       {current || '?'}
-    </motion.div>
+    </button>
   )
 }
 
 // ==================== 拼读评测组件 ====================
 const SpellingEvaluation = ({ 
-  onBack 
+  onBack,
+  onComplete,
 }: { 
   onBack: () => void
+  onComplete: (score: number) => void
 }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [score, setScore] = useState(0)
@@ -782,6 +805,7 @@ const SpellingEvaluation = ({
     setShowResult(true)
     
     const points = { easy: 10, medium: 15, hard: 20 }
+    const finalScore = score + points[difficulty]
     setScore(prev => prev + points[difficulty])
 
     setTimeout(() => {
@@ -790,15 +814,14 @@ const SpellingEvaluation = ({
         setSelectedAnswer(null)
         setShowResult(false)
       } else {
+        onComplete(Math.round((finalScore / (questions.length * 20)) * 100))
         setTestComplete(true)
       }
     }, 1500)
   }
 
   const speak = (text: string) => {
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = 'zh-CN'
-    speechSynthesis.speak(utterance)
+    speakChinese(text)
   }
 
   if (testComplete) {
@@ -955,31 +978,28 @@ const SpellingEvaluation = ({
 // ==================== 主组件 ====================
 export default function SpellingCave({ onBack }: { onBack: () => void }) {
   const [stage, setStage] = useState<GameStage>('menu')
-  const [progress, setProgress] = useState<SpellingProgress>({
-    twoSyllable: { completed: 0, total: 10, bestScore: 0 },
-    threeSyllable: { completed: 0, total: 10, bestScore: 0 },
-    dragGame: { completed: 0, total: 6, bestScore: 0 },
-    evaluation: { score: 0, lastTest: '' },
-  })
-
-  // 从 localStorage 加载进度
-  useEffect(() => {
-    const saved = localStorage.getItem('spelling-cave-progress')
-    if (saved) {
-      try {
-        setProgress(JSON.parse(saved))
-      } catch (e) {
-        console.error('Failed to load progress:', e)
-      }
-    }
-  }, [])
-
-  // 保存进度
-  useEffect(() => {
-    localStorage.setItem('spelling-cave-progress', JSON.stringify(progress))
-  }, [progress])
+  const [progress, setProgress] = usePersistentState<SpellingProgress>(
+    'spelling-cave-progress',
+    {
+      twoSyllable: { completed: 0, total: 10, bestScore: 0 },
+      threeSyllable: { completed: 0, total: 10, bestScore: 0 },
+      dragGame: { completed: 0, total: 6, bestScore: 0 },
+      evaluation: { score: 0, lastTest: '' },
+    },
+  )
+  const { completeLevel } = useGame()
 
   const handleComplete = (type: 'twoSyllable' | 'threeSyllable' | 'dragGame', score: number) => {
+    const levelIds = {
+      twoSyllable: 'two-syllable',
+      threeSyllable: 'three-syllable',
+      dragGame: 'drag-game',
+    }
+    completeLevel(
+      `spelling-cave-${levelIds[type]}`,
+      'spelling-cave',
+      starsForScore(score),
+    )
     setProgress(prev => ({
       ...prev,
       [type]: {
@@ -992,6 +1012,11 @@ export default function SpellingCave({ onBack }: { onBack: () => void }) {
   }
 
   const handleEvaluationComplete = (score: number) => {
+    completeLevel(
+      'spelling-cave-evaluation',
+      'spelling-cave',
+      starsForScore(score),
+    )
     setProgress(prev => ({
       ...prev,
       evaluation: {
@@ -1198,6 +1223,7 @@ export default function SpellingCave({ onBack }: { onBack: () => void }) {
       <div className="min-h-screen bg-gradient-to-b from-purple-100 to-pink-100 p-4">
         <SpellingEvaluation
           onBack={() => setStage('menu')}
+          onComplete={handleEvaluationComplete}
         />
       </div>
     )
