@@ -2,6 +2,9 @@ import { useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { wholeReadings } from '../../data/phonemes'
 import type { Phoneme } from '../../types'
+import { useGame } from '../../context/GameContext'
+import { usePersistentState } from '../../hooks/usePersistentState'
+import { speakChinese } from '../../utils/speech'
 
 // ==================== 类型定义 ====================
 type LearningStage = 'grid' | 'learn' | 'compare'
@@ -126,17 +129,15 @@ const ReadingCard = ({
     if (isSpeaking) return
     
     setIsSpeaking(true)
-    const utterance = new SpeechSynthesisUtterance(phoneme.pronunciation)
-    utterance.lang = 'zh-CN'
-    utterance.rate = 0.8
-    utterance.onend = () => setIsSpeaking(false)
-    speechSynthesis.speak(utterance)
+    speakChinese(phoneme.pronunciation, {
+      onEnd: () => setIsSpeaking(false),
+      onError: () => setIsSpeaking(false),
+    })
   }
 
   return (
-    <motion.button
-      onClick={onClick}
-      className={`relative aspect-square rounded-2xl flex flex-col items-center justify-center transition-all overflow-hidden ${
+    <motion.div
+      className={`relative aspect-square rounded-2xl transition-all overflow-hidden ${
         isMastered
           ? 'bg-gradient-to-br from-emerald-400 to-green-500 shadow-lg shadow-emerald-300/50'
           : isCollected
@@ -149,6 +150,12 @@ const ReadingCard = ({
       whileHover={{ scale: 1.05, y: -5 }}
       whileTap={{ scale: 0.95 }}
     >
+      <button
+        type="button"
+        onClick={onClick}
+        className="absolute inset-0 w-full h-full flex flex-col items-center justify-center"
+        aria-label={`学习整体认读音节 ${phoneme.symbol}`}
+      >
       {/* 背景装饰 */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-2 right-2 text-4xl">{phoneme.icon}</div>
@@ -179,9 +186,12 @@ const ReadingCard = ({
         </div>
       )}
 
-      {/* 播放按钮 */}
+      </button>
+
       <motion.button
+        type="button"
         onClick={handleSpeak}
+        aria-label={`播放 ${phoneme.symbol} 的发音`}
         className={`absolute bottom-2 right-2 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
           isCollected || isMastered
             ? 'bg-white/30 hover:bg-white/50'
@@ -201,7 +211,7 @@ const ReadingCard = ({
           <span className="text-white text-4xl opacity-50">🔒</span>
         </div>
       )}
-    </motion.button>
+    </motion.div>
   )
 }
 
@@ -287,18 +297,14 @@ const LearningDetail = ({
 
   const speak = useCallback((text: string) => {
     setIsPlaying(true)
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = 'zh-CN'
-    utterance.rate = 0.8
-    utterance.onend = () => setIsPlaying(false)
-    speechSynthesis.speak(utterance)
+    speakChinese(text, {
+      onEnd: () => setIsPlaying(false),
+      onError: () => setIsPlaying(false),
+    })
   }, [])
 
   const speakWord = useCallback((word: string) => {
-    const utterance = new SpeechSynthesisUtterance(word)
-    utterance.lang = 'zh-CN'
-    utterance.rate = 0.8
-    speechSynthesis.speak(utterance)
+    speakChinese(word)
   }, [])
 
   const handleCollect = () => {
@@ -592,26 +598,13 @@ const ProgressBar = ({
 
 // ==================== 主组件 ====================
 export default function WholeReadingForest({ onBack }: { onBack: () => void }) {
-  const [progress, setProgress] = useState<Record<string, WholeReadingProgress>>({})
+  const [progress, setProgress] = usePersistentState<Record<string, WholeReadingProgress>>(
+    'whole-reading-progress',
+    {},
+  )
   const [selectedPhoneme, setSelectedPhoneme] = useState<Phoneme | null>(null)
   const [stage, setStage] = useState<LearningStage>('grid')
-
-  // 从 localStorage 加载进度
-  useEffect(() => {
-    const saved = localStorage.getItem('whole-reading-progress')
-    if (saved) {
-      try {
-        setProgress(JSON.parse(saved))
-      } catch (e) {
-        console.error('Failed to load progress:', e)
-      }
-    }
-  }, [])
-
-  // 保存进度
-  useEffect(() => {
-    localStorage.setItem('whole-reading-progress', JSON.stringify(progress))
-  }, [progress])
+  const { completeLevel } = useGame()
 
   const collectedCount = Object.values(progress).filter((p) => p.collected).length
 
@@ -625,6 +618,9 @@ export default function WholeReadingForest({ onBack }: { onBack: () => void }) {
 
   const handleCollect = () => {
     if (!selectedPhoneme) return
+    if (!progress[selectedPhoneme.id]?.collected) {
+      completeLevel(`whole-reading-${selectedPhoneme.id}`, 'whole-reading', 2)
+    }
     setProgress((prev) => ({
       ...prev,
       [selectedPhoneme.id]: {

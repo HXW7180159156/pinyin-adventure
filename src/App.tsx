@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Home from './pages/Home'
 import ToneValley from './pages/ToneValley'
 import FinalIsland from './pages/FinalIsland'
@@ -7,23 +7,50 @@ import InitialPeak from './pages/InitialPeak'
 import WholeReadingForest from './pages/WholeReadingForest'
 import SpellingCave from './pages/SpellingCave'
 import { GameProvider } from './context/GameContext'
+import ErrorBoundary from './components/ErrorBoundary'
+import { loadStoredValue, saveStoredValue } from './utils/storage'
 import './index.css'
 
 type Page = 'home' | 'tone-valley' | 'final-island' | 'compound-finals' | 'initial-peak' | 'whole-reading' | 'spelling-cave'
 
+const pages: readonly Page[] = [
+  'home',
+  'tone-valley',
+  'final-island',
+  'compound-finals',
+  'initial-peak',
+  'whole-reading',
+  'spelling-cave',
+]
+
+const isPage = (page: string): page is Page => pages.includes(page as Page)
+
+const getPageFromHash = (): Page => {
+  const page = window.location.hash.slice(1)
+  return isPage(page) ? page : 'home'
+}
+
 function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('home')
-  const [showWelcome, setShowWelcome] = useState(() => {
-    return !localStorage.getItem('pinyin-adventure-visited')
-  })
+  const [currentPage, setCurrentPage] = useState<Page>(getPageFromHash)
+  const [showWelcome, setShowWelcome] = useState(
+    () => !loadStoredValue('pinyin-adventure-visited', false),
+  )
 
   const handleNavigate = useCallback((page: string) => {
-    setCurrentPage(page as Page)
+    if (!isPage(page)) return
+    window.location.hash = page === 'home' ? '' : page
+    setCurrentPage(page)
   }, [])
 
   const handleWelcomeDone = useCallback(() => {
     setShowWelcome(false)
-    localStorage.setItem('pinyin-adventure-visited', 'true')
+    saveStoredValue('pinyin-adventure-visited', true)
+  }, [])
+
+  useEffect(() => {
+    const handleHashChange = () => setCurrentPage(getPageFromHash())
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
   const renderPage = () => {
@@ -31,17 +58,17 @@ function App() {
       case 'home':
         return <Home onNavigate={handleNavigate} />
       case 'tone-valley':
-        return <ToneValley onBack={() => setCurrentPage('home')} />
+        return <ToneValley onBack={() => handleNavigate('home')} />
       case 'final-island':
-        return <FinalIsland onBack={() => setCurrentPage('home')} />
+        return <FinalIsland onBack={() => handleNavigate('home')} />
       case 'compound-finals':
-        return <CompoundFinalsIsland onBack={() => setCurrentPage('home')} />
+        return <CompoundFinalsIsland onBack={() => handleNavigate('home')} />
       case 'initial-peak':
-        return <InitialPeak onBack={() => setCurrentPage('home')} />
+        return <InitialPeak onBack={() => handleNavigate('home')} />
       case 'whole-reading':
-        return <WholeReadingForest onBack={() => setCurrentPage('home')} />
+        return <WholeReadingForest onBack={() => handleNavigate('home')} />
       case 'spelling-cave':
-        return <SpellingCave onBack={() => setCurrentPage('home')} />
+        return <SpellingCave onBack={() => handleNavigate('home')} />
       default:
         return <Home onNavigate={handleNavigate} />
     }
@@ -88,11 +115,13 @@ function App() {
   }
 
   return (
-    <GameProvider>
-      <div className="min-h-screen bg-gray-50">
-        {renderPage()}
-      </div>
-    </GameProvider>
+    <ErrorBoundary>
+      <GameProvider>
+        <div className="min-h-screen bg-gray-50">
+          {renderPage()}
+        </div>
+      </GameProvider>
+    </ErrorBoundary>
   )
 }
 

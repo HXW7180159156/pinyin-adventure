@@ -1,26 +1,7 @@
-import { useState, useEffect } from 'react'
 import { useGame } from '../../context/GameContext'
-
-const chapterList = [
-  { id: 'tone-valley', name: '声调谷', description: '学习四个声调，感受汉语的旋律美', icon: '🌈', color: 'from-pink-400 to-purple-400', bg: 'bg-pink-50' },
-  { id: 'final-island', name: '单韵母岛', description: '学习六个单韵母，打好拼音基础', icon: '🌊', color: 'from-blue-400 to-cyan-400', bg: 'bg-blue-50' },
-  { id: 'compound-finals', name: '复韵母礁', description: '学习九个复韵母，发音更丰富', icon: '🐚', color: 'from-cyan-400 to-teal-400', bg: 'bg-cyan-50' },
-  { id: 'initial-peak', name: '声母峰', description: '挑战23个声母，成为拼音高手', icon: '🏔️', color: 'from-green-400 to-emerald-400', bg: 'bg-green-50' },
-  { id: 'whole-reading', name: '整体认读', description: '学习16个整体认读音节', icon: '📚', color: 'from-lime-400 to-green-400', bg: 'bg-lime-50' },
-  { id: 'spelling-cave', name: '拼读洞', description: '学会拼读，拼音大闯关', icon: '🔮', color: 'from-purple-400 to-pink-400', bg: 'bg-purple-50' },
-]
 
 export default function Home({ onNavigate }: { onNavigate: (page: string) => void }) {
   const { state } = useGame()
-  const [showWelcome, setShowWelcome] = useState(false)
-
-  useEffect(() => {
-    const hasVisited = localStorage.getItem('pinyin-adventure-visited')
-    if (!hasVisited) {
-      setShowWelcome(true)
-      localStorage.setItem('pinyin-adventure-visited', 'true')
-    }
-  }, [])
 
   const completedLevels = state.chapters.reduce(
     (sum, ch) => sum + ch.levels.filter(l => l.completed).length,
@@ -72,7 +53,7 @@ export default function Home({ onNavigate }: { onNavigate: (page: string) => voi
               </div>
             </div>
             <div className="bg-white/20 rounded-full px-3 py-1 text-sm font-bold">
-              0/3
+              {Math.min(state.dailyActivity.completed, 3)}/3
             </div>
           </div>
         </div>
@@ -83,13 +64,19 @@ export default function Home({ onNavigate }: { onNavigate: (page: string) => voi
             <span>🗺️</span> 章节地图
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {chapterList.map((chapter) => {
+            {state.chapters.map((chapter) => {
               const progress = getChapterProgress(chapter.id)
               return (
                 <button
                   key={chapter.id}
-                  onClick={() => onNavigate(chapter.id)}
-                  className="relative overflow-hidden rounded-3xl p-5 text-left shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] bg-white group"
+                  onClick={() => chapter.unlocked && onNavigate(chapter.id)}
+                  disabled={!chapter.unlocked}
+                  aria-label={chapter.unlocked ? chapter.name : `${chapter.name}，尚未解锁`}
+                  className={`relative overflow-hidden rounded-3xl p-5 text-left shadow-lg transition-all duration-300 bg-white group ${
+                    chapter.unlocked
+                      ? 'hover:shadow-xl hover:scale-[1.03] active:scale-[0.98]'
+                      : 'opacity-60 grayscale cursor-not-allowed'
+                  }`}
                 >
                   <div className={`absolute inset-0 bg-gradient-to-br ${chapter.color} opacity-5 group-hover:opacity-10 transition-opacity`} />
                   
@@ -111,7 +98,7 @@ export default function Home({ onNavigate }: { onNavigate: (page: string) => voi
                       </div>
                     </div>
                     <div className="text-gray-300 group-hover:text-gray-500 transition-colors text-xl flex-shrink-0 mt-1">
-                      ›
+                      {chapter.unlocked ? '›' : '🔒'}
                     </div>
                   </div>
                 </button>
@@ -143,24 +130,6 @@ export default function Home({ onNavigate }: { onNavigate: (page: string) => voi
         </section>
       </main>
 
-      {/* 欢迎弹窗 */}
-      {showWelcome && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowWelcome(false)}>
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center animate-bounce-in" onClick={e => e.stopPropagation()}>
-            <div className="text-6xl mb-4">🎉</div>
-            <h2 className="text-2xl font-bold mb-2 text-gray-800">欢迎来到拼音奇遇岛！</h2>
-            <p className="text-gray-500 mb-6 text-sm">
-              选择一个章节开始你的拼音冒险吧！
-            </p>
-            <button
-              onClick={() => setShowWelcome(false)}
-              className="btn-kid-primary w-full text-lg"
-            >
-              开始探索 🚀
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

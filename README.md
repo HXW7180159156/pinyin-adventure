@@ -30,7 +30,7 @@
 ## 🚀 快速开始
 
 ### 环境要求
-- Node.js 18+
+- Node.js 20.19+ 或 22.12+
 - npm 9+
 
 ### 安装依赖
@@ -53,6 +53,11 @@ npm run build
 npm run test
 ```
 
+### 类型检查
+```bash
+npm run lint
+```
+
 ## 📱 移动端打包
 
 ### Android
@@ -65,17 +70,9 @@ cd android && ./gradlew assembleDebug
 
 APK文件位置: `android/app/build/outputs/apk/debug/app-debug.apk`
 
-### Windows (Microsoft Store)
-```bash
-npm install @capacitor/windows
-npx cap add windows
-npx cap sync windows
-# 使用Visual Studio打开 windows/PinyinAdventure.sln
-```
-
 ## 🛠️ 技术栈
 
-- **框架**: React 18 + TypeScript
+- **框架**: React 19 + TypeScript
 - **构建工具**: Vite
 - **样式**: Tailwind CSS
 - **动画**: Framer Motion

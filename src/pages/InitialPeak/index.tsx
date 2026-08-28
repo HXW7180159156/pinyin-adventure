@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Phoneme } from '../../types'
+import { useGame } from '../../context/GameContext'
+import { usePersistentState } from '../../hooks/usePersistentState'
+import { starsForScore } from '../../utils/gameLogic'
+import { speakChinese } from '../../utils/speech'
 
 // ==================== 类型定义 ====================
 type LearningStage = 'intro' | 'learn' | 'practice' | 'test' | 'collection' | 'compare'
@@ -759,9 +763,7 @@ const ConfusingComparison = ({ onBack }: { onBack: () => void }) => {
                     className="bg-gray-50 rounded-xl p-3 text-center cursor-pointer hover:bg-blue-50 transition-colors"
                     whileHover={{ scale: 1.05 }}
                     onClick={() => {
-                      const utterance = new SpeechSynthesisUtterance(item.word)
-                      utterance.lang = 'zh-CN'
-                      speechSynthesis.speak(utterance)
+                      speakChinese(item.word)
                     }}
                   >
                     <p className="text-2xl font-bold">{item.word}</p>
@@ -1038,38 +1040,25 @@ const InitialTest = ({
 export default function InitialPeak({ onBack }: { onBack: () => void }) {
   const [stage, setStage] = useState<LearningStage>('intro')
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [progress, setProgress] = useState<Record<string, InitialProgress>>({})
+  const [progress, setProgress] = usePersistentState<Record<string, InitialProgress>>(
+    'initial-peak-progress',
+    {},
+  )
   const [showCollection, setShowCollection] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
+  const { completeLevel } = useGame()
 
   const currentInitial = INITIALS_DATA[currentIndex]
 
-  // 从 localStorage 加载进度
-  useEffect(() => {
-    const saved = localStorage.getItem('initial-peak-progress')
-    if (saved) {
-      try {
-        setProgress(JSON.parse(saved))
-      } catch (e) {
-        console.error('Failed to load progress:', e)
-      }
-    }
-  }, [])
-
-  // 保存进度
-  useEffect(() => {
-    localStorage.setItem('initial-peak-progress', JSON.stringify(progress))
-  }, [progress])
-
   const speak = useCallback((text: string) => {
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = 'zh-CN'
-    utterance.rate = 0.8
-    speechSynthesis.speak(utterance)
+    speakChinese(text)
   }, [])
 
   const handleCollect = () => {
+    if (!progress[currentInitial.id]?.collected) {
+      completeLevel(`initial-peak-${currentInitial.id}`, 'initial-peak', 1)
+    }
     setProgress(prev => ({
       ...prev,
       [currentInitial.id]: {
@@ -1084,6 +1073,11 @@ export default function InitialPeak({ onBack }: { onBack: () => void }) {
   }
 
   const handleTestComplete = (score: number) => {
+    completeLevel(
+      `initial-peak-${currentInitial.id}`,
+      'initial-peak',
+      starsForScore(score),
+    )
     setProgress(prev => ({
       ...prev,
       [currentInitial.id]: {
