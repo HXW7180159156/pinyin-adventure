@@ -3,12 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import type { Phoneme } from '../../types'
 import { useGame } from '../../context/GameContext'
 import { usePersistentState } from '../../hooks/usePersistentState'
-import { starsForScore } from '../../utils/gameLogic'
+import { shuffle, starsForScore } from '../../utils/gameLogic'
 import { speakChinese } from '../../utils/speech'
 
 // ==================== 类型定义 ====================
 type LearningStage = 'intro' | 'learn' | 'practice' | 'test' | 'collection' | 'compare'
-type MouthShape = 'bilateral' | 'labiodental' | 'apical' | 'blade' | 'root' | 'zero'
 
 interface InitialProgress {
   id: string
@@ -469,7 +468,7 @@ const SpriteCollection = ({
   const [sprites, setSprites] = useState<SpriteState[]>([])
 
   useEffect(() => {
-    const newSprites = collectedInitials.map((initialId, index) => ({
+    const newSprites = collectedInitials.map((initialId) => ({
       id: `sprite-${initialId}`,
       initialId,
       x: Math.random() * 70 + 15,
@@ -893,7 +892,7 @@ const InitialTest = ({
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
   const [showFeedback, setShowFeedback] = useState(false)
 
-  const questions = [
+  const [questions] = useState(() => [
     {
       type: 'pronunciation',
       question: `"${initial.symbol}" 的发音是什么？`,
@@ -903,13 +902,13 @@ const InitialTest = ({
     {
       type: 'example',
       question: `下面哪个词语以 "${initial.symbol}" 开头？`,
-      options: [
+      options: shuffle([
         { label: initial.examples[0].match(/([\u4e00-\u9fa5]+)/)?.[0] || '', value: initial.id },
         ...INITIALS_DATA.filter(i => i.id !== initial.id).slice(0, 3).map(i => ({
           label: i.examples[0].match(/([\u4e00-\u9fa5]+)/)?.[0] || '',
           value: i.id,
         }))
-      ].sort(() => Math.random() - 0.5),
+      ]),
       correct: initial.id,
     },
     {
@@ -923,7 +922,7 @@ const InitialTest = ({
       ],
       correct: initial.id,
     },
-  ]
+  ])
 
   const handleAnswer = (answer: string) => {
     setSelectedAnswer(answer)

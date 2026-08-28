@@ -1,7 +1,7 @@
 import { useGame } from '../../context/GameContext'
 
 export default function Home({ onNavigate }: { onNavigate: (page: string) => void }) {
-  const { state } = useGame()
+  const { state, updateSettings } = useGame()
 
   const completedLevels = state.chapters.reduce(
     (sum, ch) => sum + ch.levels.filter(l => l.completed).length,
@@ -33,9 +33,20 @@ export default function Home({ onNavigate }: { onNavigate: (page: string) => voi
                 </div>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-xs text-gray-400">完成关卡</div>
-              <div className="text-lg font-bold text-blue-600">{completedLevels}<span className="text-gray-400 font-normal">/{totalLevels}</span></div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => updateSettings({ soundEnabled: !state.settings.soundEnabled })}
+                aria-pressed={state.settings.soundEnabled}
+                aria-label={state.settings.soundEnabled ? '关闭发音' : '开启发音'}
+                className="w-11 h-11 rounded-full bg-blue-50 text-xl"
+              >
+                {state.settings.soundEnabled ? '🔊' : '🔇'}
+              </button>
+              <div className="text-right">
+                <div className="text-xs text-gray-400">完成关卡</div>
+                <div className="text-lg font-bold text-blue-600">{completedLevels}<span className="text-gray-400 font-normal">/{totalLevels}</span></div>
+              </div>
             </div>
           </div>
         </div>

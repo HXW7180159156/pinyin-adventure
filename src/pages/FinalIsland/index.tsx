@@ -330,7 +330,7 @@ const Aquarium = ({
   const [fish, setFish] = useState<{ id: string; finalId: string; x: number; y: number; speed: number; size: number }[]>([])
 
   useEffect(() => {
-    const newFish = collectedFinals.map((finalId, index) => ({
+    const newFish = collectedFinals.map((finalId) => ({
       id: `fish-${finalId}`,
       finalId,
       x: Math.random() * 80 + 10,

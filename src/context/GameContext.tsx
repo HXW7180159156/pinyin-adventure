@@ -9,6 +9,9 @@ import {
 import type { Chapter, Achievement } from '../types'
 import { chapters as defaultChapters, achievements as defaultAchievements } from '../data/phonemes'
 import { loadStoredValue, saveStoredValue } from '../utils/storage'
+import { completeChapterLevel, getTotalStars } from '../utils/progress'
+import { setSpeechEnabled } from '../utils/speech'
+import { starsForScore } from '../utils/gameLogic'
 
 // ==================== 类型定义 ====================
 
@@ -38,13 +41,11 @@ interface GameState {
 }
 
 type GameAction =
-  | { type: 'INIT_STATE'; payload: GameState }
   | { type: 'COMPLETE_LEVEL'; payload: { levelId: string; chapterId: string; stars: number } }
   | { type: 'UNLOCK_CHAPTER'; payload: string }
   | { type: 'UPDATE_SETTINGS'; payload: Partial<GameSettings> }
   | { type: 'UPDATE_PROFILE'; payload: Partial<UserProfile> }
   | { type: 'UNLOCK_ACHIEVEMENT'; payload: string }
-  | { type: 'ADD_STARS'; payload: number }
   | { type: 'RESET_PROGRESS' }
 
 // ==================== 初始状态 ====================
@@ -82,12 +83,32 @@ const createInitialState = (): GameState => ({
   },
 })
 
-const isStoredGameState = (value: unknown): value is Partial<GameState> => (
-  typeof value === 'object'
-  && value !== null
-  && 'user' in value
-  && 'chapters' in value
+const isRecord = (value: unknown): value is Record<string, unknown> => (
+  typeof value === 'object' && value !== null
 )
+
+const isStoredGameState = (value: unknown): value is Partial<GameState> => {
+  if (!isRecord(value) || !isRecord(value.user) || !Array.isArray(value.chapters)) {
+    return false
+  }
+
+  const validChapters = value.chapters.every((chapter) => (
+    isRecord(chapter)
+    && typeof chapter.id === 'string'
+    && Array.isArray(chapter.levels)
+  ))
+  const validAchievements = (
+    value.achievements === undefined
+    || (
+      Array.isArray(value.achievements)
+      && value.achievements.every((achievement) => (
+        isRecord(achievement) && typeof achievement.id === 'string'
+      ))
+    )
+  )
+
+  return validChapters && validAchievements
+}
 
 const mergeStoredState = (stored: Partial<GameState> | null): GameState => {
   const initial = createInitialState()
@@ -125,6 +146,86 @@ const mergeStoredState = (stored: Partial<GameState> | null): GameState => {
   }
 }
 
+interface LegacyLearningProgress {
+  collected?: boolean
+  mastered?: boolean
+  testScore?: number
+  completed?: number
+  bestScore?: number
+  score?: number
+  stars?: number
+}
+
+const migrateLegacyModuleProgress = (state: GameState): GameState => {
+  let chapters = state.chapters
+  const learningModules = [
+    { storageKey: 'final-island-progress', chapterId: 'final-island' },
+    { storageKey: 'compound-finals-progress', chapterId: 'compound-finals' },
+    { storageKey: 'initial-peak-progress', chapterId: 'initial-peak' },
+    { storageKey: 'whole-reading-progress', chapterId: 'whole-reading' },
+  ]
+
+  learningModules.forEach(({ storageKey, chapterId }) => {
+    const progress = loadStoredValue<Record<string, LegacyLearningProgress>>(storageKey, {})
+    Object.entries(progress).forEach(([id, item]) => {
+      if (!item.collected && !item.mastered && !item.testScore) return
+      const stars = item.mastered
+        ? Math.max(2, starsForScore(item.testScore ?? 0))
+        : 1
+      chapters = completeChapterLevel(chapters, chapterId, `${chapterId}-${id}`, stars)
+    })
+  })
+
+  const toneProgress = loadStoredValue<Record<string, LegacyLearningProgress>>(
+    'tone-valley-progress',
+    {},
+  )
+  const toneLevelIds: Record<string, string> = {
+    train: 'tone-train',
+    runner: 'tone-runner',
+    match: 'tone-match',
+    challenge: 'tone-challenge',
+  }
+  Object.entries(toneProgress).forEach(([mode, item]) => {
+    if (!toneLevelIds[mode] || !item.stars) return
+    chapters = completeChapterLevel(
+      chapters,
+      'tone-valley',
+      toneLevelIds[mode],
+      item.stars,
+    )
+  })
+
+  const spellingProgress = loadStoredValue<Record<string, LegacyLearningProgress>>(
+    'spelling-cave-progress',
+    {},
+  )
+  const spellingLevelIds: Record<string, string> = {
+    twoSyllable: 'spelling-cave-two-syllable',
+    threeSyllable: 'spelling-cave-three-syllable',
+    dragGame: 'spelling-cave-drag-game',
+    evaluation: 'spelling-cave-evaluation',
+  }
+  Object.entries(spellingProgress).forEach(([mode, item]) => {
+    if (!spellingLevelIds[mode] || (!item.completed && !item.bestScore && !item.score)) return
+    chapters = completeChapterLevel(
+      chapters,
+      'spelling-cave',
+      spellingLevelIds[mode],
+      starsForScore(item.bestScore ?? item.score ?? 1),
+    )
+  })
+
+  return {
+    ...state,
+    chapters,
+    user: {
+      ...state.user,
+      totalStars: getTotalStars(chapters),
+    },
+  }
+}
+
 const loadInitialState = (): GameState => {
   const current = loadStoredValue<Partial<GameState> | null>(
     STORAGE_KEY,
@@ -138,7 +239,7 @@ const loadInitialState = (): GameState => {
     null,
     (value): value is Partial<GameState> | null => value === null || isStoredGameState(value),
   )
-  return mergeStoredState(legacy)
+  return migrateLegacyModuleProgress(mergeStoredState(legacy))
 }
 
 const getStreakDays = (lastStudyDate: string, currentStreak: number, today: string) => {
@@ -179,52 +280,16 @@ const updateAchievements = (
 
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
-    case 'INIT_STATE':
-      return action.payload
-
     case 'COMPLETE_LEVEL': {
       const { levelId, chapterId, stars } = action.payload
 
-      const completedChapters = state.chapters.map((chapter) => {
-        if (chapter.id !== chapterId) return chapter
-
-        const updatedLevels = chapter.levels.map((level) => {
-          if (level.id !== levelId) return level
-
-          return {
-            ...level,
-            starsEarned: Math.max(level.starsEarned, stars),
-            completed: true,
-            bestScore: Math.max(level.bestScore, stars === 3 ? 100 : stars * 30),
-          }
-        })
-
-        const allCompleted = updatedLevels.length > 0 && updatedLevels.every((l) => l.completed)
-
-        return {
-          ...chapter,
-          levels: updatedLevels,
-          completed: allCompleted,
-          progress: Math.round((updatedLevels.filter(l => l.completed).length / updatedLevels.length) * 100),
-        }
-      })
-
-      const currentChapterIndex = completedChapters.findIndex((ch) => ch.id === chapterId)
-      const shouldUnlockNext = (
-        currentChapterIndex >= 0
-        && currentChapterIndex < completedChapters.length - 1
-        && completedChapters[currentChapterIndex].completed
+      const updatedChapters = completeChapterLevel(
+        state.chapters,
+        chapterId,
+        levelId,
+        stars,
       )
-      const updatedChapters = completedChapters.map((chapter, index) => (
-        shouldUnlockNext && index === currentChapterIndex + 1
-          ? { ...chapter, unlocked: true }
-          : chapter
-      ))
-
-      const totalStars = updatedChapters.reduce(
-        (sum, ch) => sum + ch.levels.reduce((s, l) => s + l.starsEarned, 0),
-        0
-      )
+      const totalStars = getTotalStars(updatedChapters)
       const today = getToday()
       const streakDays = getStreakDays(state.user.lastStudyDate, state.user.streakDays, today)
       const dailyActivity = state.dailyActivity.date === today
@@ -278,15 +343,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         ),
       }
 
-    case 'ADD_STARS':
-      return {
-        ...state,
-        user: {
-          ...state.user,
-          totalStars: state.user.totalStars + action.payload,
-        },
-      }
-
     case 'RESET_PROGRESS':
       return createInitialState()
 
@@ -305,7 +361,6 @@ interface GameContextType {
   updateSettings: (settings: Partial<GameSettings>) => void
   updateProfile: (profile: Partial<UserProfile>) => void
   unlockAchievement: (achievementId: string) => void
-  addStars: (stars: number) => void
   resetProgress: () => void
   getChapterProgress: (chapterId: string) => number
   isLevelUnlocked: (levelId: string, chapterId: string) => boolean
@@ -321,6 +376,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     saveStoredValue(STORAGE_KEY, state)
   }, [state])
+
+  useEffect(() => {
+    setSpeechEnabled(state.settings.soundEnabled)
+  }, [state.settings.soundEnabled])
 
   const completeLevel = (levelId: string, chapterId: string, stars: number) => {
     dispatch({ type: 'COMPLETE_LEVEL', payload: { levelId, chapterId, stars } })
@@ -340,10 +399,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const unlockAchievement = (achievementId: string) => {
     dispatch({ type: 'UNLOCK_ACHIEVEMENT', payload: achievementId })
-  }
-
-  const addStars = (stars: number) => {
-    dispatch({ type: 'ADD_STARS', payload: stars })
   }
 
   const resetProgress = () => {
@@ -380,7 +435,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
         updateSettings,
         updateProfile,
         unlockAchievement,
-        addStars,
         resetProgress,
         getChapterProgress,
         isLevelUnlocked,

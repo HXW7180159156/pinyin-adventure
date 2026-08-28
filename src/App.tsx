@@ -1,15 +1,16 @@
-import { useState, useCallback, useEffect } from 'react'
+import { lazy, Suspense, useState, useCallback, useEffect } from 'react'
 import Home from './pages/Home'
-import ToneValley from './pages/ToneValley'
-import FinalIsland from './pages/FinalIsland'
-import CompoundFinalsIsland from './pages/CompoundFinalsIsland'
-import InitialPeak from './pages/InitialPeak'
-import WholeReadingForest from './pages/WholeReadingForest'
-import SpellingCave from './pages/SpellingCave'
 import { GameProvider } from './context/GameContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import { loadStoredValue, saveStoredValue } from './utils/storage'
 import './index.css'
+
+const ToneValley = lazy(() => import('./pages/ToneValley'))
+const FinalIsland = lazy(() => import('./pages/FinalIsland'))
+const CompoundFinalsIsland = lazy(() => import('./pages/CompoundFinalsIsland'))
+const InitialPeak = lazy(() => import('./pages/InitialPeak'))
+const WholeReadingForest = lazy(() => import('./pages/WholeReadingForest'))
+const SpellingCave = lazy(() => import('./pages/SpellingCave'))
 
 type Page = 'home' | 'tone-valley' | 'final-island' | 'compound-finals' | 'initial-peak' | 'whole-reading' | 'spelling-cave'
 
@@ -118,7 +119,15 @@ function App() {
     <ErrorBoundary>
       <GameProvider>
         <div className="min-h-screen bg-gray-50">
-          {renderPage()}
+          <Suspense
+            fallback={
+              <div className="min-h-screen flex items-center justify-center text-xl text-gray-600">
+                正在前往下一站…
+              </div>
+            }
+          >
+            {renderPage()}
+          </Suspense>
         </div>
       </GameProvider>
     </ErrorBoundary>

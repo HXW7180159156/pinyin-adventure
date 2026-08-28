@@ -23,7 +23,8 @@ export const loadStoredValue = <T>(
     if (!rawValue) return fallback
 
     const value: unknown = JSON.parse(rawValue)
-    return !validator || validator(value) ? value : fallback
+    if (validator) return validator(value) ? value : fallback
+    return value as T
   } catch {
     return fallback
   }

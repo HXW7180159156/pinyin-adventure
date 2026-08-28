@@ -33,6 +33,7 @@ interface ToneCard {
 const TONE_COLORS = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3']
 const TONE_NAMES = ['第一声', '第二声', '第三声', '第四声']
 const TONE_DESCRIPTIONS = ['高平调', '升调', '降升调', '降调']
+const ignoreScoreUpdate = () => undefined
 
 // ==================== 辅助函数 ====================
 
@@ -953,7 +954,6 @@ const ToneChallengeGame = ({ onComplete, onScoreUpdate }: { onComplete: (stats: 
   const [isCorrect, setIsCorrect] = useState(false)
   const [bossHealth, setBossHealth] = useState(100)
   const [playerHealth, setPlayerHealth] = useState(100)
-  const [gameMode, setGameMode] = useState<'listen' | 'identify' | 'spell'>('listen')
   
   const questions = [
     { type: 'listen', tone: 0, question: '听音选择声调', options: [0, 1, 2, 3] },
@@ -980,7 +980,6 @@ const ToneChallengeGame = ({ onComplete, onScoreUpdate }: { onComplete: (stats: 
     })
     setBossHealth(100)
     setPlayerHealth(100)
-    setGameMode('listen')
   }
 
   const handleAnswer = (answer: number | string) => {
@@ -1035,7 +1034,6 @@ const ToneChallengeGame = ({ onComplete, onScoreUpdate }: { onComplete: (stats: 
         setScreen('result')
       } else {
         setCurrentQuestion(nextQuestion)
-        setGameMode(questions[nextQuestion].type as 'listen' | 'identify' | 'spell')
       }
     }, 1500)
   }
@@ -1237,7 +1235,7 @@ const ToneChallengeGame = ({ onComplete, onScoreUpdate }: { onComplete: (stats: 
               className={`
                 p-6 rounded-2xl font-bold text-3xl transition-all duration-200
                 ${showResult 
-                  ? option === tones[currentQ.tone].symbol.toLowerCase().replace(/[^a-z]/g, '') + 'a'
+                  ? isToneSpellAnswer(option, currentQ.options, currentQ.tone)
                     ? 'bg-green-400 text-white'
                     : 'bg-red-200 text-gray-400'
                   : 'bg-white shadow-lg hover:shadow-xl'
@@ -1312,12 +1310,7 @@ const ToneChallengeGame = ({ onComplete, onScoreUpdate }: { onComplete: (stats: 
 
 export default function ToneValley({ onBack }: { onBack: () => void }) {
   const [currentMode, setCurrentMode] = useState<GameMode>('menu')
-  const [currentScore, setCurrentScore] = useState(0)
   const { state, completeLevel } = useGame()
-
-  const handleScoreUpdate = (score: number) => {
-    setCurrentScore(score)
-  }
 
   const handleGameComplete = (mode: string, stats: GameStats) => {
     // 保存游戏进度到 localStorage
@@ -1357,28 +1350,28 @@ export default function ToneValley({ onBack }: { onBack: () => void }) {
         return (
           <ToneTrainGame 
             onComplete={(stats) => handleGameComplete('train', stats)}
-            onScoreUpdate={handleScoreUpdate}
+            onScoreUpdate={ignoreScoreUpdate}
           />
         )
       case 'runner':
         return (
           <ToneRunnerGame 
             onComplete={(stats) => handleGameComplete('runner', stats)}
-            onScoreUpdate={handleScoreUpdate}
+            onScoreUpdate={ignoreScoreUpdate}
           />
         )
       case 'match':
         return (
           <ToneMatchGame 
             onComplete={(stats) => handleGameComplete('match', stats)}
-            onScoreUpdate={handleScoreUpdate}
+            onScoreUpdate={ignoreScoreUpdate}
           />
         )
       case 'challenge':
         return (
           <ToneChallengeGame 
             onComplete={(stats) => handleGameComplete('challenge', stats)}
-            onScoreUpdate={handleScoreUpdate}
+            onScoreUpdate={ignoreScoreUpdate}
           />
         )
       default:
@@ -1396,7 +1389,6 @@ export default function ToneValley({ onBack }: { onBack: () => void }) {
               onBack()
             } else {
               setCurrentMode('menu')
-              setCurrentScore(0)
             }
           }}
           className="btn-kid-secondary"

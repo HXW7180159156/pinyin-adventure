@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import type { Phoneme } from '../../types'
 import { useGame } from '../../context/GameContext'
 import { usePersistentState } from '../../hooks/usePersistentState'
-import { starsForScore } from '../../utils/gameLogic'
+import { shuffle, starsForScore } from '../../utils/gameLogic'
 import { speakChinese } from '../../utils/speech'
 
 // ==================== 类型定义 ====================
@@ -242,7 +242,11 @@ const RecordingPractice = ({
 
   useEffect(() => () => {
     if (timerRef.current) clearTimeout(timerRef.current)
-    if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop()
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.ondataavailable = null
+      mediaRecorderRef.current.onstop = null
+      if (mediaRecorderRef.current.state === 'recording') mediaRecorderRef.current.stop()
+    }
     streamRef.current?.getTracks().forEach((track) => track.stop())
     if (playbackUrlRef.current) URL.revokeObjectURL(playbackUrlRef.current)
   }, [])
@@ -275,6 +279,7 @@ const RecordingPractice = ({
         setPlaybackUrl(url)
         stream.getTracks().forEach(track => track.stop())
         streamRef.current = null
+        mediaRecorderRef.current = null
       }
 
       mediaRecorder.start()
@@ -299,7 +304,10 @@ const RecordingPractice = ({
       mediaRecorderRef.current.stop()
       setIsRecording(false)
     }
-    if (timerRef.current) clearTimeout(timerRef.current)
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
   }
 
   const speakWord = (example: string) => {
@@ -422,7 +430,7 @@ const Aquarium = ({
   const [fish, setFish] = useState<FishState[]>([])
 
   useEffect(() => {
-    const newFish = collectedFinals.map((finalId, index) => ({
+    const newFish = collectedFinals.map((finalId) => ({
       id: `fish-${finalId}`,
       finalId,
       x: Math.random() * 80 + 10,
@@ -618,22 +626,22 @@ const CompoundTest = ({
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
   const [showFeedback, setShowFeedback] = useState(false)
 
-  const questions = [
+  const [questions] = useState(() => [
     {
       type: 'pronunciation',
       question: `"${final.symbol}" 的发音是什么？`,
-      options: COMPOUND_DATA.map(f => ({ label: f.pronunciation, value: f.id })).sort(() => Math.random() - 0.5),
+      options: shuffle(COMPOUND_DATA.map(f => ({ label: f.pronunciation, value: f.id }))),
       correct: final.id,
     },
     {
       type: 'mouth',
       question: `发 "${final.symbol}" 音时，口型是如何变化的？`,
-      options: [
+      options: shuffle([
         { label: final.mouthShape.slice(0, 8), value: final.id },
         { label: '嘴巴张大，保持不变', value: 'wrong1' },
         { label: '嘴巴变小，保持不变', value: 'wrong2' },
         { label: '舌头卷起发音', value: 'wrong3' },
-      ].sort(() => Math.random() - 0.5),
+      ]),
       correct: final.id,
     },
     {
@@ -645,7 +653,7 @@ const CompoundTest = ({
       }),
       correct: final.examples[0],
     },
-  ]
+  ])
 
   const handleAnswer = (answer: string) => {
     setSelectedAnswer(answer)
